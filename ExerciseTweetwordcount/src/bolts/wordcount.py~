@@ -1,0 +1,39 @@
+from __future__ import absolute_import, print_function, unicode_literals
+
+from collections import Counter
+from streamparse.bolt import Bolt
+import psycopg2
+
+class WordCounter(Bolt):
+
+    def initialize(self, conf, ctx):
+        self.counts = Counter()
+       
+    def process(self, tup):
+        word = tup.values[0]
+        self.counts[word] += 1
+
+        # Log the count - just to see the topology running                                                                                               
+        self.log('%s: %d' % (word, self.counts[word]))
+
+        # Emit the word and the count                                                                                                                    
+        self.emit([word, self.counts[word]])
+
+        #########################################
+        #Update database
+        #########################################
+        
+        conn = psycopg2.connect(database = "tcount", user = "postgres", password = "pass", host = "localhost", port = "5432")
+        cur = conn.cursor()
+
+#The first time a word is passed through the function, insert a row into the table for that word
+        if self.counts[word] == 1:
+            cur.execute("""INSERT INTO tweetwordcount (word, count) values (%s, %s)""", (word, self.counts[word]))
+            conn.commit()
+        
+#After the first time a word is passed, update the existing row with the new count
+        else:
+            cur.execute("""UPDATE tweetwordcount set count = %s WHERE word = %s""", (self.counts[word], word))
+            conn.commit()
+        
+        conn.close()

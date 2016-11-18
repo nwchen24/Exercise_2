@@ -1,0 +1,13 @@
+(ns tweetwordcount
+    (:use	[streamparse.specs])
+    (:gen-class))
+
+(defn tweetwordcount [options]
+      [
+      ;; spout configuration
+      {"tweet-spout" (python-spout-spec
+      		     options
+		     "spouts.tweets.Tweets"
+		     ["tweet"]
+		     :p 3
+		     )
